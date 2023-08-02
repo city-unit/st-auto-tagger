@@ -1,0 +1,39 @@
+<div class="auto-tagger-settings">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>Auto Tagger</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+
+
+            <div class="auto-tagger_block flex-container">
+                <input id="chub-import" class="menu_button" type="submit" value="Import Character Info from CHUB" />
+                <!-- New button for comparison -->
+            </div>
+            <div class="auto-tagger_block flex-container">
+                <input id="get_creators_notes" type="checkbox" /> <!-- New checkbox for using alt description -->
+                <label for="get_creators_notes">Pull Creator's Notes from CHUB</label>
+            </div>
+            <div class="auto-tagger_block flex-container">
+                <input id="use_alt_desc" type="checkbox" /> <!-- New checkbox for using alt description -->
+                <label for="use_alt_desc">Use Tagline As Creator's Notes</label>
+            </div>
+            <!-- A slider for the dice threshold -->
+            <div class="auto-tagger_block flex-container">
+                <label for="dice_threshold">Dice Threshold (<span id="dice_threshold_value"></span>)</label>
+                <input id="dice_threshold" type="range" min=".1" max="1" step=".1"/>
+
+            </div>
+            <!-- A slider for the number to search for threshold -->
+            <div class="auto-tagger_block flex-container">
+                <label for="find_count">Search Width (<span id="find_count_value"></span> characters)</label>
+                <input id="find_count" type="range" min="1" max="40"/>
+            </div>
+
+            <!-- New div for comparison results -->
+            <div id="comparison-results"></div>
+
+            <hr class="sysHR">
+        </div>
+    </div>
