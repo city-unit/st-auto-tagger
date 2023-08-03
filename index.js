@@ -1,16 +1,10 @@
-import {
-    saveSettingsDebounced,
-    getSettings,
-    getRequestHeaders,
-    getCharacters,
-} from "../../../../script.js";
+import { saveSettingsDebounced, getSettings, getRequestHeaders, getCharacters } from "../../../../script.js";
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { importTags } from "../../../tags.js";
 
 // Endpoint for API call
 const API_ENDPOINT_SEARCH = "https://api.chub.ai/api/characters/search";
 const API_ENDPOINT_DOWNLOAD = "https://api.chub.ai/api/characters/download";
-
 
 const defaultSettings = {
     useAltDescription: false,
@@ -53,10 +47,7 @@ function intersect(set1, set2) {
 function diceCoefficient(str1, str2) {
     const bigrams1 = getBigrams(str1);
     const bigrams2 = getBigrams(str2);
-    return (
-        (2 * intersect(bigrams1, bigrams2).size) /
-        (bigrams1.size + bigrams2.size)
-    );
+    return (2 * intersect(bigrams1, bigrams2).size) / (bigrams1.size + bigrams2.size);
 }
 
 /**
@@ -70,19 +61,11 @@ async function loadSettings() {
     if (Object.keys(extension_settings.tag_importer).length === 0) {
         Object.assign(extension_settings.tag_importer, defaultSettings);
     }
-    $("#use_alt_desc")
-        .prop("checked", extension_settings.tag_importer.useAltDescription)
-        .trigger("input");
-    $("#get_creators_notes")
-        .prop("checked", extension_settings.tag_importer.getCreatorsNote)
-        .trigger("input");
-    $("#find_count")
-        .val(extension_settings.tag_importer.findCount)
-        .trigger("input");
-    $("#dice_threshold")
-        .val(extension_settings.tag_importer.diceThreshold)
-        .trigger("input");
-    $('#skip_strategy').val(extension_settings.tag_importer.skipStrategy);
+    $("#use_alt_desc").prop("checked", extension_settings.tag_importer.useAltDescription).trigger("input");
+    $("#get_creators_notes").prop("checked", extension_settings.tag_importer.getCreatorsNote).trigger("input");
+    $("#find_count").val(extension_settings.tag_importer.findCount).trigger("input");
+    $("#dice_threshold").val(extension_settings.tag_importer.diceThreshold).trigger("input");
+    $("#skip_strategy").val(extension_settings.tag_importer.skipStrategy);
 }
 
 /**
@@ -110,14 +93,14 @@ function onGetCreatorsNotesInput() {
 function onFindCountInput() {
     const value = $(this).val();
     extension_settings.tag_importer.findCount = value;
-    $('#find_count_value').text(value);
+    $("#find_count_value").text(value);
     saveSettingsDebounced();
 }
 
 function onDiceThresholdInput() {
     const value = $(this).val();
     extension_settings.tag_importer.diceThreshold = value;
-    $('#dice_threshold_value').text(value);
+    $("#dice_threshold_value").text(value);
     saveSettingsDebounced();
 }
 
@@ -128,7 +111,6 @@ function onSkipStratInput() {
     extension_settings.tag_importer.skipStrategy = value;
     saveSettingsDebounced();
 }
-
 
 /**
  * Fetch character data from the API based on name and description.
@@ -146,18 +128,18 @@ function onSkipStratInput() {
  */
 async function fetchCharacterData(name, description) {
     let name_response = await fetch(
-        `${API_ENDPOINT_SEARCH}?search=${encodeURIComponent(
-            name
-        )}&first=${extension_settings.tag_importer.findCount}&nsfw=true`
+        `${API_ENDPOINT_SEARCH}?search=${encodeURIComponent(name)}&first=${
+            extension_settings.tag_importer.findCount
+        }&nsfw=true`
     );
     let name_data = await name_response.json();
 
     // now search for the first 40 characters of the description
     description = description.substring(0, 40);
     let char_response = await fetch(
-        `${API_ENDPOINT_SEARCH}?search=${encodeURIComponent(
-            description
-        )}&first=${extension_settings.tag_importer.findCount}&nsfw=true`
+        `${API_ENDPOINT_SEARCH}?search=${encodeURIComponent(description)}&first=${
+            extension_settings.tag_importer.findCount
+        }&nsfw=true`
     );
     let char_data = await char_response.json();
 
@@ -222,16 +204,12 @@ async function downloadCharacter(fullPath) {
  */
 async function onCImportButtonClick(importType = "all") {
     console.debug("Comparing characters...");
-    toastr.info(
-        "This may take some time, depending on the number of cards",
-        "Processing..."
-    );
+    toastr.info("This may take some time, depending on the number of cards", "Processing...");
     console.log(importType);
     let characters = [];
     if (importType !== "single") {
         characters = await getContext().characters;
-    }
-    else {
+    } else {
         characters = [await getContext().characters[getContext().characterId]];
     }
 
@@ -241,25 +219,19 @@ async function onCImportButtonClick(importType = "all") {
     try {
         for (let character of characters) {
             // If the character already has a creator, tags, or creator notes, skip it
-            if (extension_settings.tag_importer.skipStrategy == 0 && (character.tags || (importCreatorInfo && (character.creator || character.creatorcomment)))) {
+            if (
+                extension_settings.tag_importer.skipStrategy == 0 &&
+                (character.tags || (importCreatorInfo && (character.creator || character.creatorcomment)))
+            ) {
                 console.debug(`Skipping ${character.name} because it already has info.`);
                 continue;
             }
 
-            const searchedCharacters = await fetchCharacterData(
-                character.name,
-                character.description
-            );
+            const searchedCharacters = await fetchCharacterData(character.name, character.description);
             let found = false;
             for (let searchedCharacterKey in searchedCharacters) {
-                let searchedCharacter =
-                    searchedCharacters[searchedCharacterKey];
-                found = await processCharacter(
-                    searchedCharacter,
-                    character,
-                    importCreatorInfo,
-                    useAltDescription
-                );
+                let searchedCharacter = searchedCharacters[searchedCharacterKey];
+                found = await processCharacter(searchedCharacter, character, importCreatorInfo, useAltDescription);
                 if (found) {
                     break;
                 }
@@ -268,12 +240,9 @@ async function onCImportButtonClick(importType = "all") {
                 toastr.warning(`No match found for ${character.name}`);
             }
         }
-
     } catch (error) {
         toastr.error("Something went wrong while importing from CHub");
-        console.error(
-            `An error occurred while processing characters: ${error}`
-        );
+        console.error(`An error occurred while processing characters: ${error}`);
     }
     toastr.success(`Import complete`, `All characters processed`);
 }
@@ -286,52 +255,26 @@ async function onCImportButtonClick(importType = "all") {
  * @param {boolean} useAltDescription - Flag indicating whether to use an alternate description.
  * @returns {boolean} - A boolean indicating if the character data import was successful.
  */
-async function processCharacter(
-    searchedCharacter,
-    character,
-    importCreatorInfo,
-    useAltDescription
-) {
-    const downloadedCharacter = await downloadCharacter(
-        searchedCharacter.fullPath
-    );
+async function processCharacter(searchedCharacter, character, importCreatorInfo, useAltDescription) {
+    const downloadedCharacter = await downloadCharacter(searchedCharacter.fullPath);
     const author = getAuthorFromPath(searchedCharacter.fullPath);
 
     const isAuthorMatch = character.creator?.includes(author);
-    const isPersonalityMatch = isMatch(
-        character.personality,
-        downloadedCharacter.title
-    );
-    const isDescriptionMatch = isMatch(
-        character.description,
-        downloadedCharacter.description
-    );
+    const isPersonalityMatch = isMatch(character.personality, downloadedCharacter.title);
+    const isDescriptionMatch = isMatch(character.description, downloadedCharacter.description);
     const isScenarioMatch = isMatch(
         character.mes_example.replace(/(\r\n|\n|\r)/gm, ""),
         downloadedCharacter.definition.replace(/(\r\n|\n|\r)/gm, "")
     );
-    const isGreetingMatch = isMatch(
-        character.first_mes,
-        downloadedCharacter.greeting
-    );
+    const isGreetingMatch = isMatch(character.first_mes, downloadedCharacter.greeting);
 
-    if (
-        checkMatch([
-            isPersonalityMatch,
-            isDescriptionMatch,
-            isScenarioMatch,
-            isGreetingMatch,
-            isAuthorMatch,
-        ])
-    ) {
+    if (checkMatch([isPersonalityMatch, isDescriptionMatch, isScenarioMatch, isGreetingMatch, isAuthorMatch])) {
         await importData(
             character,
             searchedCharacter,
             importCreatorInfo,
             author,
-            useAltDescription
-                ? searchedCharacter.tagline
-                : downloadedCharacter.description
+            useAltDescription ? searchedCharacter.tagline : downloadedCharacter.description
         );
         return true;
     } else {
@@ -367,13 +310,7 @@ function checkMatch(matches) {
  * @param {string} author - The author of the searched character.
  * @param {string} description - The description of the downloaded character.
  */
-async function importData(
-    character,
-    searchedCharacter,
-    importCreatorInfo,
-    author,
-    description
-) {
+async function importData(character, searchedCharacter, importCreatorInfo, author, description) {
     let tags = filterTopics(searchedCharacter.topics);
     character.tags = addTags(character.tags, tags);
     console.debug(`Importing ${tags.length} tags for ${character.name}.`);
@@ -385,30 +322,18 @@ async function importData(
         if (extension_settings.tag_importer.skipStrategy == 1) {
             console.log("appending creator info");
             author = character.creator ? character.creator + "\n" + author : author;
-            description = character.data?.creator_notes ? character.data.creator_notes + "\n" + description : description;
+            description = character.data?.creator_notes
+                ? character.data.creator_notes + "\n" + description
+                : description;
         }
 
         // Add try catch here, continue if error
         try {
-            await editCharacterAttribute(
-                author,
-                "creator",
-                character.avatar,
-                character.name
-            );
-            await editCharacterAttribute(
-                description,
-                "creator_notes",
-                character.avatar,
-                character.name
-            );
+            await editCharacterAttribute(author, "creator", character.avatar, character.name);
+            await editCharacterAttribute(description, "creator_notes", character.avatar, character.name);
         } catch (error) {
-            toastr.error(
-                `Something went wrong while importing creator info for ${character.name}`
-            );
-            console.error(
-                `An error occurred while importing creator info for ${character.name}: ${error}`
-            );
+            toastr.error(`Something went wrong while importing creator info for ${character.name}`);
+            console.error(`An error occurred while importing creator info for ${character.name}: ${error}`);
         }
 
         await getCharacters();
@@ -416,8 +341,7 @@ async function importData(
         $("#creator_notes_textarea").val(character.data?.creator_notes || character.creatorcomment);
     }
     toastr.success(
-        `${importCreatorInfo ? "Creator info and " : ""}${tags.length
-        } tags imported`,
+        `${importCreatorInfo ? "Creator info and " : ""}${tags.length} tags imported`,
         `Import for ${character.name} complete`
     );
 }
@@ -479,13 +403,15 @@ function getAuthorFromPath(fullPath) {
 }
 
 jQuery(async () => {
-    const settingsHtml = await $.get(
-        "scripts/extensions/third-party/st-auto-tagger/dropdown.html"
-    );
+    const settingsHtml = await $.get("scripts/extensions/third-party/st-auto-tagger/dropdown.html");
     // Append settingsHtml to extensions_settings
     $("#extensions_settings2").append(settingsHtml);
-    $("#chub-import").on("click", function () { onCImportButtonClick("all"); });
-    $("#chub-import-single").on("click", function () { onCImportButtonClick("single"); });
+    $("#chub-import").on("click", function () {
+        onCImportButtonClick("all");
+    });
+    $("#chub-import-single").on("click", function () {
+        onCImportButtonClick("single");
+    });
     $("#use_alt_desc").on("input", onAltDescriptionInput);
     $("#get_creators_notes").on("input", onGetCreatorsNotesInput);
     $("#find_count").on("input", onFindCountInput);
