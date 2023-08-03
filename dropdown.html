@@ -8,8 +8,10 @@
 
 
             <div class="auto-tagger_block flex-container">
-                <input id="chub-import" class="menu_button" type="submit" value="Import Character Info from CHUB" />
-                <!-- New button for comparison -->
+                <input id="chub-import" class="menu_button" type="submit" value="Import All Character Info from CHUB" />
+            </div>
+            <div class="auto-tagger_block flex-container">
+                <input id="chub-import-single" class="menu_button" type="submit" value="Import Current Character Info from CHUB" />
             </div>
             <div class="auto-tagger_block flex-container">
                 <input id="get_creators_notes" type="checkbox" /> <!-- New checkbox for using alt description -->
@@ -18,6 +20,15 @@
             <div class="auto-tagger_block flex-container">
                 <input id="use_alt_desc" type="checkbox" /> <!-- New checkbox for using alt description -->
                 <label for="use_alt_desc">Use Tagline As Creator's Notes</label>
+            </div>
+            <!-- Dropdown to determine strategy, tooltips to indicate what they do -->
+            <div class="auto-tagger_block flex-container">
+                <span>Skip Strategy?</span> </br>
+                <select id="skip_strategy">
+                    <option title="If it has tags or author info, skip." value="0">Skip if Existing</option>
+                    <option title="Add the author info/notes to the end. Tags added."value="1">Append to Existing</option>
+                    <option title="Write over author info / notes. Doesn't affect tags."value="2">Overwrite Existing</option>
+                </select>
             </div>
             <!-- A slider for the dice threshold -->
             <div class="auto-tagger_block flex-container">

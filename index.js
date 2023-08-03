@@ -10,13 +10,14 @@ import { importTags } from "../../../tags.js";
 // Endpoint for API call
 const API_ENDPOINT_SEARCH = "https://api.chub.ai/api/characters/search";
 const API_ENDPOINT_DOWNLOAD = "https://api.chub.ai/api/characters/download";
- 
+
 
 const defaultSettings = {
     useAltDescription: false,
     getCreatorsNote: false,
     findCount: 10,
     diceThreshold: 0.8,
+    skipStrategy: 0,
 };
 
 /**
@@ -81,6 +82,7 @@ async function loadSettings() {
     $("#dice_threshold")
         .val(extension_settings.tag_importer.diceThreshold)
         .trigger("input");
+    $('#skip_strategy').val(extension_settings.tag_importer.skipStrategy);
 }
 
 /**
@@ -112,12 +114,21 @@ function onFindCountInput() {
     saveSettingsDebounced();
 }
 
-function onDiceThresholdInput() {   
+function onDiceThresholdInput() {
     const value = $(this).val();
     extension_settings.tag_importer.diceThreshold = value;
     $('#dice_threshold_value').text(value);
     saveSettingsDebounced();
 }
+
+function onSkipStratInput() {
+    console.log("skip strat input");
+    console.log($(this).val());
+    const value = $(this).val();
+    extension_settings.tag_importer.skipStrategy = value;
+    saveSettingsDebounced();
+}
+
 
 /**
  * Fetch character data from the API based on name and description.
@@ -207,19 +218,34 @@ async function downloadCharacter(fullPath) {
  * Fetches and processes character data when the button is clicked.
  * This function also logs any errors that occur during the execution.
  * A notification is displayed to indicate the processing status, and after the processing is completed, the characters' settings and data are fetched again.
+ * @param {string} importType The type of import, either "single" or "all".
  */
-async function onCImportButtonClick() {
+async function onCImportButtonClick(importType = "all") {
     console.debug("Comparing characters...");
     toastr.info(
         "This may take some time, depending on the number of cards",
         "Processing..."
     );
-    const characters = getContext().characters;
+    console.log(importType);
+    let characters = [];
+    if (importType !== "single") {
+        characters = await getContext().characters;
+    }
+    else {
+        characters = [await getContext().characters[getContext().characterId]];
+    }
+
     let importCreatorInfo = extension_settings.tag_importer.getCreatorsNote;
     let useAltDescription = extension_settings.tag_importer.useAltDescription;
 
     try {
         for (let character of characters) {
+            // If the character already has a creator, tags, or creator notes, skip it
+            if (extension_settings.tag_importer.skipStrategy == 0 && (character.tags || (importCreatorInfo && (character.creator || character.creatorcomment)))) {
+                console.debug(`Skipping ${character.name} because it already has info.`);
+                continue;
+            }
+
             const searchedCharacters = await fetchCharacterData(
                 character.name,
                 character.description
@@ -355,6 +381,13 @@ async function importData(
 
     if (importCreatorInfo) {
         console.debug(`Importing creator info for ${character.name}.`);
+        // If in append mode, append creator info to existing creator info
+        if (extension_settings.tag_importer.skipStrategy == 1) {
+            console.log("appending creator info");
+            author = character.creator ? character.creator + "\n" + author : author;
+            description = character.data?.creator_notes ? character.data.creator_notes + "\n" + description : description;
+        }
+
         // Add try catch here, continue if error
         try {
             await editCharacterAttribute(
@@ -377,14 +410,13 @@ async function importData(
                 `An error occurred while importing creator info for ${character.name}: ${error}`
             );
         }
-        
+
         await getCharacters();
         $("#creator_textarea").val(character.data?.creator);
         $("#creator_notes_textarea").val(character.data?.creator_notes || character.creatorcomment);
     }
     toastr.success(
-        `${importCreatorInfo ? "Creator info and " : ""}${
-            tags.length
+        `${importCreatorInfo ? "Creator info and " : ""}${tags.length
         } tags imported`,
         `Import for ${character.name} complete`
     );
@@ -452,10 +484,12 @@ jQuery(async () => {
     );
     // Append settingsHtml to extensions_settings
     $("#extensions_settings2").append(settingsHtml);
-    $("#chub-import").on("click", onCImportButtonClick);
+    $("#chub-import").on("click", function () { onCImportButtonClick("all"); });
+    $("#chub-import-single").on("click", function () { onCImportButtonClick("single"); });
     $("#use_alt_desc").on("input", onAltDescriptionInput);
     $("#get_creators_notes").on("input", onGetCreatorsNotesInput);
     $("#find_count").on("input", onFindCountInput);
     $("#dice_threshold").on("input", onDiceThresholdInput);
+    $("#skip_strategy").on("change", onSkipStratInput);
     loadSettings();
 });
