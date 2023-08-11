@@ -156,6 +156,42 @@ async function fetchCharacterData(name, description) {
 }
 
 /**
+ * Fallback function to download a character file from an alternative server.
+ *
+ * This function sends a GET request to the alternative server to download a character file.
+ * The function expects a full path to the character file, which is used to identify the file on the server.
+ * The function returns a Promise that resolves to the downloaded character data.
+ *
+ * @param {string} fullPath - The full path to the character file on the server.
+ * @returns {Promise<Object>} - A Promise that resolves to the downloaded character data.
+ */
+async function downloadCharacterFallback(fullPath) {
+    const url = `https://api.chub.ai/api/characters/${fullPath}?full=true`;
+
+    const response = await fetch(url, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    const data = await response.json();
+    console.log(data);
+    // Map the data to the expected format
+    const mappedData = {
+        definition: data.node.definition.example_dialogs,
+        greeting: data.node.definition.first_message,
+        title: data.node.definition.tavern_personality,
+        description: data.node.description,
+        personality: data.node.definition.personality,
+    };
+    console.log(mappedData);
+    return mappedData;
+}
+
+
+
+/**
  * Download a character file from the server.
  *
  * This function sends a POST request to the server to download a character file in the specified format.
@@ -166,20 +202,32 @@ async function fetchCharacterData(name, description) {
  * @returns {Promise<Object>} - A Promise that resolves to the downloaded character data.
  */
 async function downloadCharacter(fullPath) {
-    const response = await fetch(API_ENDPOINT_DOWNLOAD, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            format: "cai",
-            fullPath: fullPath,
-            version: "main",
-        }),
-    });
-    const data = await response.json();
-    return data;
+    try {
+        const response = await fetch(API_ENDPOINT_DOWNLOAD, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                format: "cai",
+                fullPath: fullPath,
+                version: "main",
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to download character from primary API.");
+        }
+
+        const data = await response.json();
+        return data;
+
+    } catch (error) {
+        console.warn("Primary API failed. Trying the fallback API...", error);
+        return downloadCharacterFallback(fullPath);
+    }
 }
+
 
 /**
  * Add tags to a character and update the UI and internal map.
@@ -256,32 +304,38 @@ async function onCImportButtonClick(importType = "all") {
  * @returns {boolean} - A boolean indicating if the character data import was successful.
  */
 async function processCharacter(searchedCharacter, character, importCreatorInfo, useAltDescription) {
-    const downloadedCharacter = await downloadCharacter(searchedCharacter.fullPath);
-    const author = getAuthorFromPath(searchedCharacter.fullPath);
+    try {
+        const downloadedCharacter = await downloadCharacter(searchedCharacter.fullPath || "");
+        const author = getAuthorFromPath(searchedCharacter.fullPath || "");
 
-    const isAuthorMatch = character.creator?.includes(author);
-    const isPersonalityMatch = isMatch(character.personality, downloadedCharacter.title);
-    const isDescriptionMatch = isMatch(character.description, downloadedCharacter.description);
-    const isScenarioMatch = isMatch(
-        character.mes_example.replace(/(\r\n|\n|\r)/gm, ""),
-        downloadedCharacter.definition.replace(/(\r\n|\n|\r)/gm, "")
-    );
-    const isGreetingMatch = isMatch(character.first_mes, downloadedCharacter.greeting);
-
-    if (checkMatch([isPersonalityMatch, isDescriptionMatch, isScenarioMatch, isGreetingMatch, isAuthorMatch])) {
-        await importData(
-            character,
-            searchedCharacter,
-            importCreatorInfo,
-            author,
-            useAltDescription ? searchedCharacter.tagline : downloadedCharacter.description
+        const isAuthorMatch = character.creator?.includes(author);
+        const isPersonalityMatch = isMatch(character.personality || "", downloadedCharacter.title || "");
+        const isDescriptionMatch = isMatch(character.description || "", downloadedCharacter.description || "");
+        const fallbackDescriptionMatch = isMatch(character.description || "", downloadedCharacter.personality || "");
+        const isScenarioMatch = isMatch(
+            (character.mes_example || "").replace(/(\r\n|\n|\r)/gm, ""),
+            (downloadedCharacter.definition || "").replace(/(\r\n|\n|\r)/gm, "")
         );
-        return true;
-    } else {
-        console.debug(`Character ${character.name} does not match.`);
+        const isGreetingMatch = isMatch(character.first_mes || "", downloadedCharacter.greeting || "");
+
+        if (checkMatch([isPersonalityMatch, isDescriptionMatch, isScenarioMatch, isGreetingMatch, isAuthorMatch, fallbackDescriptionMatch])) {
+            await importData(
+                character,
+                searchedCharacter,
+                importCreatorInfo,
+                author,
+                useAltDescription ? (searchedCharacter.tagline || "") : (downloadedCharacter.description || "") //Something is wrong with this, but the api doesn't work, so I can't fix it.
+            );
+            return true;
+        } else {
+            console.debug(`Character ${character.name} does not match.`);
+        }
+    } catch (error) {
+        console.error(`Error processing character ${character.name}:`, error);
     }
     return false;
 }
+
 
 /**
  * Compares two strings using the Dice Coefficient.
@@ -290,6 +344,11 @@ async function processCharacter(searchedCharacter, character, importCreatorInfo,
  * @return {boolean} True if the coefficient is greater than 0.8, false otherwise.
  */
 function isMatch(a, b) {
+    // If either string is empty, return false
+    if (!a || !b) {
+        return false;
+    }
+    //console.log(a, b);
     return diceCoefficient(a, b) > extension_settings.tag_importer.diceThreshold;
 }
 
