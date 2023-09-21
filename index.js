@@ -130,7 +130,7 @@ async function fetchCharacterData(name, description) {
     let name_response = await fetch(
         `${API_ENDPOINT_SEARCH}?search=${encodeURIComponent(name)}&first=${
             extension_settings.tag_importer.findCount
-        }&nsfw=true`
+        }&nsfw=true&venus=true`
     );
     let name_data = await name_response.json();
 
@@ -139,7 +139,7 @@ async function fetchCharacterData(name, description) {
     let char_response = await fetch(
         `${API_ENDPOINT_SEARCH}?search=${encodeURIComponent(description)}&first=${
             extension_settings.tag_importer.findCount
-        }&nsfw=true`
+        }&nsfw=true&venus=true`
     );
     let char_data = await char_response.json();
 
